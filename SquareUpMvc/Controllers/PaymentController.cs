@@ -95,7 +95,8 @@ namespace SquareUpMvc.Controllers
                     IdempotencyKey = Guid.NewGuid().ToString(),
                     SourceId = request.SourceId,
                     AmountMoney = amountMoney,
-                    CustomerId = customerId
+                    CustomerId = customerId,
+                    ReferenceId = "aliali"
                 };
 
                 var response = await _squareClient.Payments.CreateAsync(createPaymentRequest);
