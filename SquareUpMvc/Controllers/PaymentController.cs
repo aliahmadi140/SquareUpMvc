@@ -1,9 +1,11 @@
 ﻿
 using Microsoft.AspNetCore.Mvc;
 using Square;
+using Square.Checkout.PaymentLinks;
 using Square.Customers;
 using Square.Payments;
 using SquareUpMvc.Models;
+using Square.Checkout;
 
 namespace SquareUpMvc.Controllers
 {
@@ -143,6 +145,72 @@ namespace SquareUpMvc.Controllers
             }
         }
 
+        [HttpGet("create-payment-link")]
+        public async Task<IActionResult> CreatePaymentLink()
+        {
+
+            try
+            {
+                var idempotencyKey = Guid.NewGuid().ToString();
+                var money = new Money
+                {
+                    Amount = 10000,
+                    Currency = Currency.Gbp
+                };
+
+
+                var locationsResponse = await _squareClient.Locations.ListAsync();
+                var locationId = locationsResponse.Locations?.FirstOrDefault(l => l.Status == LocationStatus.Active)?.Id;
+                if (string.IsNullOrEmpty(locationId))
+                {
+                    return BadRequest(new { Status = "Failed", Message = "No active Square location found." });
+                }
+
+                var quickPay = new QuickPay
+                {
+                    Name = "TestPayment",         // Required
+                    PriceMoney = money,        // Required
+                    LocationId = locationId,
+
+                };
+
+                var request = new CreatePaymentLinkRequest
+                {
+                    IdempotencyKey = idempotencyKey,
+                    QuickPay = quickPay,
+                    Description = "Test test",
+                    CheckoutOptions = new CheckoutOptions
+                    {
+                        RedirectUrl = "http://127.0.0.1"
+                    },
+
+
+                };
+
+                var response = await _squareClient.Checkout.PaymentLinks.CreateAsync(request);
+
+                if (response.PaymentLink != null)
+                {
+                    return Ok(new
+                    {
+                        Status = "Success",
+                        Url = response.PaymentLink.Url,
+                        LongUrl = response.PaymentLink.LongUrl
+                    });
+                }
+                else
+                {
+                    return BadRequest(new { Status = "Failed", Errors = response.Errors });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating payment link");
+                return StatusCode(500, new { Status = "Failed", Message = ex.Message });
+            }
+        }
+
+
         private string GetUserFriendlyErrorMessage(Exception ex)
         {
 
@@ -183,4 +251,14 @@ namespace SquareUpMvc.Controllers
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
 
